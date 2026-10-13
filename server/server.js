@@ -276,11 +276,27 @@ app.delete('/api/profile/photo', databaseRequired, jwtConfigRequired, requireAut
   } catch (error) { next(error); }
 });
 
-const mailTransport = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD
+const resendApiKey = process.env.RESEND_API_KEY?.trim();
+const smtpTransport = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD
   ? nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT || 587), secure: process.env.SMTP_SECURE === 'true', auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD.replace(/\s+/g, '') }, connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 20000 })
   : null;
+const emailConfigured = Boolean(process.env.MAIL_FROM && (resendApiKey || smtpTransport));
+async function sendNotificationEmail(job) {
+  if (resendApiKey) {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${resendApiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: process.env.MAIL_FROM, to: [job.recipient], subject: job.subject, text: job.text }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(`Resend API request failed (${response.status}): ${result.message || 'Unknown error'}`);
+    return;
+  }
+  const receipt = await smtpTransport.sendMail({ from: process.env.MAIL_FROM, to: job.recipient, subject: job.subject, text: job.text });
+  if (receipt.rejected?.includes(job.recipient)) throw new Error('SMTP server rejected the recipient address.');
+}
 async function queueNotificationEmail(user, notification) {
-  if (!mailTransport || !process.env.MAIL_FROM) return 'not_configured';
+  if (!emailConfigured) return 'not_configured';
   await EmailOutbox.create({ notification: notification.id, recipient: user.email, subject: notification.subject, text: notification.message });
   return 'queued';
 }
@@ -294,7 +310,7 @@ async function persistNotification({ user, kind, subject, message }) {
 }
 let outboxBusy = false;
 async function processOutbox() {
-  if (!mailTransport || !process.env.MAIL_FROM || mongoose.connection.readyState !== 1 || outboxBusy) return;
+  if (!emailConfigured || mongoose.connection.readyState !== 1 || outboxBusy) return;
   outboxBusy = true;
   try {
     await EmailOutbox.updateMany({ status: 'sending', lockedAt: { $lt: new Date(Date.now() - 5 * 60 * 1000) } }, { $set: { status: 'queued', lockedAt: null } });
@@ -306,8 +322,7 @@ async function processOutbox() {
     );
     if (!job) break;
     try {
-      const receipt = await mailTransport.sendMail({ from: process.env.MAIL_FROM, to: job.recipient, subject: job.subject, text: job.text });
-      if (receipt.rejected?.includes(job.recipient)) throw new Error('SMTP server rejected the recipient address.');
+      await sendNotificationEmail(job);
       job.status = 'sent'; job.lockedAt = null; job.lastError = ''; await job.save();
       await Notification.findByIdAndUpdate(job.notification, { $set: { emailStatus: 'sent' } });
     } catch (error) {

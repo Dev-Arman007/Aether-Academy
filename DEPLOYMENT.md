@@ -26,7 +26,8 @@ Set these values in the hosting provider's encrypted environment-variable settin
 | `CLIENT_ORIGIN` | Yes | Comma-separated exact origins, including `https://`, with no paths or trailing slash. Example: `https://portal.example.edu`. |
 | `PORT` | Usually supplied by host | The API uses the port provided by the platform, or 8787 locally. |
 | `ANTHROPIC_API_KEY` | Optional | Enables Aether AI. Provider usage may incur charges. |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_SECURE`, `MAIL_FROM` | Optional | Required together for email notifications. Keep the SMTP password private. |
+| `RESEND_API_KEY`, `MAIL_FROM` | Optional | Enables email notifications over HTTPS. Verify the sender domain with Resend and use an allowed sender address. Keep the API key private. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_SECURE`, `MAIL_FROM` | Optional fallback | Enables SMTP email where outbound SMTP ports are allowed. Keep the SMTP password private. Render Free blocks outbound ports 25, 465, and 587; use Resend there. |
 
 For MongoDB Atlas, allow the hosting service's outbound IP addresses in the Atlas network access list. Avoid `0.0.0.0/0` for a production database. Keep Atlas backups and test restoring them before storing real school records.
 

@@ -6,7 +6,7 @@ Aether Academy is now structured as a MERN application: React/Vite client, Expre
 
 - Node.js 20.19 or newer
 - A MongoDB server (local or hosted)
-- SMTP credentials for outbound email and an Anthropic API key for AI chat (both optional integrations)
+- Resend API credentials or SMTP credentials for outbound email, and an Anthropic API key for AI chat (all optional integrations)
 
 1. From the project root, run `npm ci`.
 2. Install the API dependencies with `npm ci --prefix server`.
@@ -38,11 +38,11 @@ For a local presentation, start the app and run `DEMO_SEED=true npm run demo:see
 
 ## Academic records and notifications
 
-Faculty and admins can publish a fee reminder or a grade from **Add records**. The API saves the record and an in-app notification in MongoDB. When SMTP is configured, it also writes an email job to a MongoDB outbox. The worker retries temporary failures with backoff up to five attempts. A notification shows `queued`, `sent`, `failed`, or `not configured`; `sent` means the SMTP server accepted the message, not proof it reached the recipient's inbox. An admin can mark a fee as settled after reconciling payment through the school's finance process; this app does not process payments.
+Faculty and admins can publish a fee reminder or a grade from **Add records**. The API saves the record and an in-app notification in MongoDB. When Resend or SMTP is configured, it also writes an email job to a MongoDB outbox. The worker retries temporary failures with backoff up to five attempts. A notification shows `queued`, `sent`, `failed`, or `not configured`; `sent` means the provider accepted the message, not proof it reached the recipient's inbox. An admin can mark a fee as settled after reconciling payment through the school's finance process; this app does not process payments.
 
 Teachers and admins can create classes with enrolled student rosters, take dated attendance (present, absent, late, excused), and publish assignments with due dates. Students can view their enrolled classes, attendance history, and assignments, then save or update a text submission. Assignment publishing creates a notification for each enrolled student. Faculty access is limited to classes they own; admins can view all classes. Existing student accounts must be enrolled by selecting them in the class form.
 
-Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `MAIL_FROM` in `server/.env`. Authenticated server-sent events notify open dashboards when a record or notification changes; a periodic refresh is kept as a fallback. The notification bell lets each user mark their own notices as read.
+For email, set `RESEND_API_KEY` and `MAIL_FROM` in `server/.env` (recommended for Render Free; verify the sender domain with Resend). Alternatively, configure the `SMTP_*` variables and `MAIL_FROM` on a host that permits outbound SMTP. Authenticated server-sent events notify open dashboards when a record or notification changes; a periodic refresh is kept as a fallback. The notification bell lets each user mark their own notices as read.
 
 Core endpoints:
 
