@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Login - Aether ERP</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config Injection -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-tint": "#00dbe7",
+                        "on-tertiary-container": "#516177",
+                        "tertiary": "#f5f7ff",
+                        "on-error-container": "#ffdad6",
+                        "on-background": "#dce4e4",
+                        "surface-dim": "#0d1515",
+                        "on-secondary-container": "#fff6fc",
+                        "secondary-container": "#b600f8",
+                        "tertiary-container": "#ccdcf6",
+                        "error": "#ffb4ab",
+                        "primary-container": "#00f2ff",
+                        "on-tertiary-fixed": "#0b1c30",
+                        "surface-container-highest": "#2e3637",
+                        "inverse-on-surface": "#2a3232",
+                        "surface-container-low": "#151d1e",
+                        "inverse-surface": "#dce4e4",
+                        "outline-variant": "#3a494b",
+                        "background": "#0d1515",
+                        "on-surface": "#dce4e4",
+                        "on-primary": "#00363a",
+                        "surface-variant": "#2e3637",
+                        "on-tertiary-fixed-variant": "#38485d",
+                        "primary": "#e1fdff",
+                        "tertiary-fixed": "#d3e4fe",
+                        "primary-fixed": "#74f5ff",
+                        "surface-container-lowest": "#080f10",
+                        "on-tertiary": "#213145",
+                        "secondary-fixed-dim": "#ebb2ff",
+                        "surface-bright": "#333b3b",
+                        "inverse-primary": "#00696f",
+                        "on-secondary": "#520072",
+                        "on-primary-container": "#006a71",
+                        "primary-fixed-dim": "#00dbe7",
+                        "on-surface-variant": "#b9cacb",
+                        "error-container": "#93000a",
+                        "secondary": "#ebb2ff",
+                        "surface-container": "#192122",
+                        "on-primary-fixed-variant": "#004f54",
+                        "secondary-fixed": "#f8d8ff",
+                        "surface-container-high": "#232b2c",
+                        "on-error": "#690005",
+                        "on-primary-fixed": "#002022",
+                        "surface": "#0d1515",
+                        "tertiary-fixed-dim": "#b7c8e1",
+                        "outline": "#849495",
+                        "on-secondary-fixed": "#320047",
+                        "on-secondary-fixed-variant": "#74009f"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "20px",
+                        "xl": "32px",
+                        "sm": "8px",
+                        "xxl": "48px",
+                        "md": "16px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "unit": "4px",
+                        "container-padding": "32px"
+                    },
+                    "fontFamily": {
+                        "headline-lg-mobile": ["Inter"],
+                        "label-sm": ["JetBrains Mono"],
+                        "body-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "headline-sm": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "label-md": ["JetBrains Mono"],
+                        "body-md": ["Inter"],
+                        "headline-lg": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "600" }],
+                        "label-sm": ["12px", { "lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "500" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "label-md": ["14px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Role Selector Active State Sliding Indicator Logic handled via JS class toggling for simplicity, 
+           but CSS variables provide smooth transitions */
+        .role-tab {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        .role-tab.active {
+            color: theme('colors.primary-container');
+        }
+        .role-tab::before {
+            content: '';
+            position: absolute;
+            top: -2px; /* Pull up to overlap border container if needed, or align top */
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: theme('colors.primary-container');
+            opacity: 0;
+            transform: scaleX(0);
+            transition: all 0.3s ease;
+        }
+        .role-tab.active::before {
+            opacity: 1;
+            transform: scaleX(1);
+            box-shadow: 0 0 10px theme('colors.primary-container');
+        }
+
+        /* Ambient Glow */
+        .ambient-glow {
+            position: absolute;
+            width: 60vw;
+            height: 60vw;
+            background: radial-gradient(circle, rgba(0, 219, 231, 0.05) 0%, rgba(13, 21, 21, 0) 70%);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 0;
+            pointer-events: none;
+        }
+        
+        /* Custom Input Auto-fill style override for dark mode */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus, 
+        input:-webkit-autofill:active{
+            -webkit-box-shadow: 0 0 0 30px theme('colors.surface-container-highest') inset !important;
+            -webkit-text-fill-color: theme('colors.on-surface') !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen flex items-center justify-center relative overflow-hidden selection:bg-primary-container selection:text-on-primary">
+<!-- Background Texture & Glow -->
+<div class="absolute inset-0 z-0">
+<div class="ambient-glow"></div>
+<div class="w-full h-full bg-cover bg-center opacity-30 mix-blend-screen" data-alt="A dark, minimal space-themed background texture. Deep navy blue and obsidian black tones with subtle, ethereal cyan nebulous glowing particles scattered sparsely. The lighting is low-key, evoking a sophisticated, high-tech atmospheric depth. High resolution, completely abstract and non-distracting." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDK5BkKsNJrImGMMtXwkWityTd_7fAac9u6BhmPhRH-KR1KvVLmpBxnejk9shoBALSZEjpOv_eaXU32h4GFDR-TcpsqlmRAJzW3uSqJMWd0i3fqx5A8vH18pcZvJXD2kPMxkCClL7ceQdQXYw1td6vGB67yFnGo2Lx_7KMi4eACPUwyqGRWtTmm5JQS7hRg0w4XbNSBfmsdOIeYCGEmOWfR6zG93qQLUIivkIRdLm9SdI-nMNrmWM8g')"></div>
+<div class="absolute inset-0 bg-background/80 backdrop-blur-sm"></div>
+</div>
+<!-- Top Left Brand Anchor -->
+<div class="absolute top-0 left-0 p-lg z-20 flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary-container text-[28px]" style="font-variation-settings: 'FILL' 1;">
+            school
+        </span>
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm text-primary-container tracking-tight">Aether Academy</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Admin Portal</span>
+</div>
+</div>
+<!-- Main Canvas: Centered Login Card -->
+<main class="relative z-10 w-full max-w-[440px] px-md md:px-0">
+<!-- Glassmorphism Card (Level 1) -->
+<div class="bg-surface-container-low/70 backdrop-blur-[20px] border border-white/10 rounded-xl p-lg md:p-xl shadow-2xl flex flex-col gap-lg">
+<!-- Header -->
+<div class="text-center flex flex-col gap-xs">
+<h1 class="font-headline-md text-headline-md text-on-surface">Welcome Back</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Authenticate to access your workspace.</p>
+</div>
+<!-- Role Selector (Segmented Tab) -->
+<div aria-label="Select Role" class="bg-surface-container/50 rounded-lg p-1 flex relative isolate" role="tablist">
+<!-- Background slider could be added here, using simple active states for this iteration -->
+<button aria-selected="true" class="role-tab active flex-1 py-2 font-label-md text-label-md text-on-surface-variant hover:text-on-surface rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container" onclick="selectRole(this, 'student')" role="tab" type="button">Student</button>
+<button aria-selected="false" class="role-tab flex-1 py-2 font-label-md text-label-md text-on-surface-variant hover:text-on-surface rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container" onclick="selectRole(this, 'faculty')" role="tab" type="button">Faculty</button>
+<button aria-selected="false" class="role-tab flex-1 py-2 font-label-md text-label-md text-on-surface-variant hover:text-on-surface rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container" onclick="selectRole(this, 'admin')" role="tab" type="button">Admin</button>
+<button aria-selected="false" class="role-tab flex-1 py-2 font-label-md text-label-md text-on-surface-variant hover:text-on-surface rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container" onclick="selectRole(this, 'parent')" role="tab" type="button">Parent</button>
+</div>
+<!-- Login Form -->
+<form action="#" class="flex flex-col gap-md" method="POST">
+<!-- Hidden Input for Role -->
+<input id="user_role" name="user_role" type="hidden" value="student"/>
+<!-- Email Field -->
+<div class="flex flex-col gap-xs relative">
+<label class="font-label-sm text-label-sm text-on-surface-variant ml-1" for="email">Email Address</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-on-surface-variant pointer-events-none" style="font-size: 20px;">mail</span>
+<input autocomplete="email" class="w-full bg-surface-container-highest border border-outline-variant text-on-surface rounded-lg pl-10 pr-4 py-3 font-body-md text-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container focus:outline-none transition-colors placeholder:text-outline-variant/50" id="email" name="email" placeholder="Enter your institutional email" required="" type="email"/>
+</div>
+</div>
+<!-- Password Field -->
+<div class="flex flex-col gap-xs relative">
+<label class="font-label-sm text-label-sm text-on-surface-variant ml-1" for="password">Password</label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-on-surface-variant pointer-events-none" style="font-size: 20px;">lock</span>
+<input autocomplete="current-password" class="w-full bg-surface-container-highest border border-outline-variant text-on-surface rounded-lg pl-10 pr-10 py-3 font-body-md text-body-md focus:border-primary-container focus:ring-1 focus:ring-primary-container focus:outline-none transition-colors placeholder:text-outline-variant/50" id="password" name="password" placeholder="••••••••" required="" type="password"/>
+<button aria-label="Toggle password visibility" class="absolute right-3 text-on-surface-variant hover:text-on-surface focus:outline-none" onclick="togglePassword()" type="button">
+<span class="material-symbols-outlined" id="visibility_icon" style="font-size: 20px;">visibility</span>
+</button>
+</div>
+</div>
+<!-- Options Row -->
+<div class="flex items-center justify-between mt-xs">
+<label class="flex items-center gap-2 cursor-pointer group">
+<input class="w-4 h-4 rounded border-outline-variant bg-surface-container-highest text-primary-container focus:ring-primary-container focus:ring-offset-background transition-colors cursor-pointer" name="remember" type="checkbox"/>
+<span class="font-body-sm text-body-sm text-on-surface-variant group-hover:text-on-surface transition-colors">Remember me</span>
+</label>
+<a class="font-label-sm text-label-sm text-primary-container hover:text-primary-fixed-dim transition-colors underline-offset-4 hover:underline" href="#">Forgot password?</a>
+</div>
+<!-- Primary CTA Action -->
+<button class="mt-sm w-full py-3 bg-primary-container text-on-primary font-label-md text-label-md font-bold rounded-lg hover:shadow-[0_0_15px_rgba(0,242,255,0.4)] hover:bg-primary-fixed hover:text-on-primary-fixed transition-all duration-300 flex justify-center items-center gap-2 group" type="submit">
+                    Login
+                    <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform" style="font-size: 18px; font-variation-settings: 'wght' 600;">arrow_forward</span>
+</button>
+</form>
+<!-- Footer Hint -->
+<div class="pt-sm border-t border-white/5 text-center">
+<p class="font-label-sm text-label-sm text-outline flex items-center justify-center gap-1">
+<span class="material-symbols-outlined text-[14px]">info</span>
+                    Demo credentials: admin / password
+                </p>
+</div>
+</div>
+</main>
+<!-- Interactive Scripts -->
+<script>
+        function selectRole(element, role) {
+            // Update UI
+            document.querySelectorAll('.role-tab').forEach(tab => {
+                tab.classList.remove('active');
+                tab.setAttribute('aria-selected', 'false');
+            });
+            element.classList.add('active');
+            element.setAttribute('aria-selected', 'true');
+            
+            // Update hidden form input
+            document.getElementById('user_role').value = role;
+        }
+
+        function togglePassword() {
+            const pwdInput = document.getElementById('password');
+            const icon = document.getElementById('visibility_icon');
+            
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                icon.textContent = 'visibility_off';
+            } else {
+                pwdInput.type = 'password';
+                icon.textContent = 'visibility';
+            }
+        }
+    </script>
+</body></html>

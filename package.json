@@ -1,0 +1,22 @@
+{
+  "name": "aether-academy-erp",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently -k \"npm --prefix server run dev\" \"vite --host 127.0.0.1 --configLoader native\"",
+    "build": "vite build --configLoader native",
+    "demo:seed": "npm --prefix server run demo:seed",
+    "provision": "npm --prefix server run provision",
+    "start": "npm --prefix server start"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.2",
+    "concurrently": "^9.2.1",
+    "vite": "^8.3.4",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}
