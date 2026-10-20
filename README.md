@@ -52,6 +52,7 @@ Core endpoints:
 - `GET /api/students`, `DELETE /api/students/:id` (faculty/admin; permanently removes account, photo, notifications, and enrollment in a transaction while retaining academic history; requires MongoDB Atlas transactions)
 - `GET/POST /api/classes`, `PATCH /api/classes/:id/students` (faculty/admin), `GET/POST /api/attendance`
 - `GET/POST /api/assignments`, `POST /api/assignments/:id/submit` (student)
+- `GET/POST /api/tests`, `POST /api/tests/:id/start`, `PUT /api/tests/:id/progress`, `POST /api/tests/:id/submit` (timed class assessments; students get one attempt and an automatically scored report card)
 - `GET /api/notifications`, `PATCH /api/notifications/:id/read`
 - `POST /api/events/academic` for trusted faculty/admin integrations
 - `POST /api/chat`, `GET /api/health`
@@ -64,6 +65,6 @@ Set `ANTHROPIC_API_KEY` to enable broad general-purpose chat. The default model 
 
 ## Data and deployment notes
 
-The dashboard no longer displays invented attendance, timetable, grade, or fee figures. New accounts start with empty academic records. Attendance and basic assignment workflows are available; timetable scheduling, file uploads and grading/rubrics, payment processing, parent-to-student account linking, password recovery, and email verification are not implemented. Before serving live student data, configure HTTPS, MongoDB backups, secrets, and a monitored email provider, and establish school-specific retention and operating procedures.
+The dashboard no longer displays invented attendance, timetable, grade, or fee figures. New accounts start with empty academic records. Attendance, assignments, and timed multiple-choice tests are available; tests are authored in the app and automatically scored. Timetable scheduling, general document uploads, written-answer grading/rubrics, payment processing, parent-to-student account linking, password recovery, and email verification are not implemented. Before serving live student data, configure HTTPS, MongoDB backups, secrets, and a monitored email provider, and establish school-specific retention and operating procedures.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for production build commands, required environment variables, health checks, MongoDB Atlas network access, and operational limitations.

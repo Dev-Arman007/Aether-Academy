@@ -29,6 +29,8 @@ Set these values in the hosting provider's encrypted environment-variable settin
 | `RESEND_API_KEY`, `MAIL_FROM` | Optional | Enables email notifications over HTTPS. Verify the sender domain with Resend and use an allowed sender address. Keep the API key private. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_SECURE`, `MAIL_FROM` | Optional fallback | Enables SMTP email where outbound SMTP ports are allowed. Keep the SMTP password private. Render Free blocks outbound ports 25, 465, and 587; use Resend there. |
 
+For a Render Free web service, add `RESEND_API_KEY` and `MAIL_FROM` under **Dashboard → your web service → Environment**, then save and redeploy. `MAIL_FROM` must be a sender address on a domain verified with Resend (for example, `Aether Academy <notifications@your-verified-domain.edu>`). Do not configure SMTP as the Render Free delivery path. On startup, the service logs which provider it selected; `/api/health` reports the non-secret email `configured` flag and provider name. After publishing a grade or fee, `queued` means the MongoDB outbox has the job, while `failed` means the Render service logs contain the provider error. Existing notifications marked `not configured` were never queued; create a new notification after email is configured to exercise delivery.
+
 For MongoDB Atlas, allow the hosting service's outbound IP addresses in the Atlas network access list. Avoid `0.0.0.0/0` for a production database. Keep Atlas backups and test restoring them before storing real school records.
 
 ## Before inviting students

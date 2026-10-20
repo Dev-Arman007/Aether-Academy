@@ -75,6 +75,14 @@ export default function App() {
   const [classes, setClasses] = useState([]);
   const [attendance, setAttendance] = useState([]);
   const [assignments, setAssignments] = useState([]);
+  const [tests, setTests] = useState([]);
+  const [testQuestions, setTestQuestions] = useState([{ prompt: '', options: ['', '', '', ''], correctOption: 0 }]);
+  const [activeTest, setActiveTest] = useState(null);
+  const [activeAnswers, setActiveAnswers] = useState([]);
+  const [testReport, setTestReport] = useState(null);
+  const [testRemaining, setTestRemaining] = useState(0);
+  const testAutoSubmitRef = useRef(false);
+  const testProgressQueueRef = useRef(Promise.resolve());
   const [attendanceStatuses, setAttendanceStatuses] = useState({});
   const [selectedAttendanceClass, setSelectedAttendanceClass] = useState('');
   const [totalStudents, setTotalStudents] = useState(0);
@@ -127,7 +135,7 @@ export default function App() {
   useEffect(() => {
     let alive = true;
     const stored = sessionStorage.getItem('aether_session');
-    const allowedViews = ['overview', 'students', 'grades', 'fees', 'manage', 'classes', 'attendance', 'assignments', 'profile'];
+    const allowedViews = ['overview', 'students', 'grades', 'fees', 'manage', 'classes', 'attendance', 'assignments', 'tests', 'profile'];
     if (!stored) { setAuthReady(true); return () => { alive = false; }; }
     try {
       const saved = JSON.parse(stored);
@@ -135,7 +143,7 @@ export default function App() {
       api('/auth/me', { token: saved.token }).then(({ user }) => {
         if (!alive) return;
         const savedView = sessionStorage.getItem('aether_view');
-        const validViews = ['faculty', 'admin'].includes(user.role) ? allowedViews : ['overview', 'grades', 'fees', 'classes', 'attendance', 'assignments', 'profile'];
+        const validViews = ['faculty', 'admin'].includes(user.role) ? allowedViews : ['overview', 'grades', 'fees', 'classes', 'attendance', 'assignments', 'tests', 'profile'];
         const savedScroll = Number(sessionStorage.getItem('aether_scroll_y'));
         setView(validViews.includes(savedView) ? savedView : 'overview');
         restoreScrollRef.current = Number.isFinite(savedScroll) ? Math.max(0, savedScroll) : 0;
@@ -187,13 +195,14 @@ export default function App() {
     const staff = ['faculty', 'admin'].includes(session.role);
     const load = async () => {
       try {
-        const requests = [api('/records', { token: session.token }), api('/notifications', { token: session.token }), api('/classes', { token: session.token }), api('/attendance', { token: session.token }), api('/assignments', { token: session.token })];
+        const requests = [api('/records', { token: session.token }), api('/notifications', { token: session.token }), api('/classes', { token: session.token }), api('/attendance', { token: session.token }), api('/assignments', { token: session.token }), api('/tests', { token: session.token })];
         if (staff) requests.push(api('/students', { token: session.token }));
-        const [recordData, notificationData, classData, attendanceData, assignmentData, studentData] = await Promise.all(requests);
+        const [recordData, notificationData, classData, attendanceData, assignmentData, testData, studentData] = await Promise.all(requests);
         if (!alive) return;
         setRecords(recordData.records);
         setNotifications(notificationData.notifications);
         setClasses(classData.classes); setAttendance(attendanceData.attendance); setAssignments(assignmentData.assignments);
+        setTests(testData.tests);
         if (studentData) { setStudents(studentData.students); setTotalStudents(studentData.totalStudents); }
         setLastSyncedAt(new Date());
         setDataError('');
@@ -259,6 +268,19 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [notice]);
 
+  useEffect(() => {
+    if (!activeTest || testReport) return undefined;
+    const deadline = Math.min(Date.parse(activeTest.attempt.startedAt) + activeTest.durationMinutes * 60_000, Date.parse(activeTest.closesAt));
+    const tick = () => {
+      const seconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setTestRemaining(seconds);
+      if (seconds === 0 && !testAutoSubmitRef.current) { testAutoSubmitRef.current = true; void finishTest(activeAnswers); }
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [activeTest, activeAnswers, testReport]);
+
   const unread = useMemo(() => notifications.filter((item) => !item.readAt).length, [notifications]);
   const isStaff = Boolean(session && ['faculty', 'admin'].includes(session.role));
   const grades = records.filter((record) => record.category === 'grade');
@@ -266,10 +288,11 @@ export default function App() {
   const pendingFees = fees.filter((record) => record.status === 'pending');
   const filteredStudents = students.filter((student) => `${student.name} ${student.email}`.toLowerCase().includes(studentQuery.trim().toLowerCase()));
   const navItems = isStaff
-    ? [['◫', 'Overview', 'overview'], ['♙', 'Students', 'students'], ['▦', 'Classes', 'classes'], ['✓', 'Attendance', 'attendance'], ['▤', 'Assignments', 'assignments'], ['▤', 'Grades', 'grades'], ['◈', 'Fees', 'fees'], ['＋', 'Add records', 'manage']]
-    : [['◫', 'Overview', 'overview'], ['▦', 'My classes', 'classes'], ['✓', 'Attendance', 'attendance'], ['▤', 'Assignments', 'assignments'], ['▤', 'Grades', 'grades'], ['◈', 'Fees', 'fees']];
+    ? [['◫', 'Overview', 'overview'], ['♙', 'Students', 'students'], ['▦', 'Classes', 'classes'], ['✓', 'Attendance', 'attendance'], ['▤', 'Assignments', 'assignments'], ['◧', 'Tests', 'tests'], ['▤', 'Grades', 'grades'], ['◈', 'Fees', 'fees'], ['＋', 'Add records', 'manage']]
+    : [['◫', 'Overview', 'overview'], ['▦', 'My classes', 'classes'], ['✓', 'Attendance', 'attendance'], ['▤', 'Assignments', 'assignments'], ['◧', 'Tests', 'tests'], ['▤', 'Grades', 'grades'], ['◈', 'Fees', 'fees']];
   const viewTitle = view === 'overview' ? `Welcome, ${session?.name?.split(' ')[0] || ''}.`
     : view === 'students' ? 'Student directory.'
+    : view === 'tests' ? 'Tests and report cards.'
     : view === 'classes' ? 'Classes and rosters.'
       : view === 'attendance' ? 'Attendance.'
         : view === 'assignments' ? 'Assignments.'
@@ -281,6 +304,7 @@ export default function App() {
     : view === 'classes' ? 'Manage class groups and their enrolled student rosters.'
       : view === 'attendance' ? 'Record and review dated attendance for your classes.'
         : view === 'assignments' ? 'Publish class work, track submissions, and see due dates.'
+          : view === 'tests' ? 'Take timed assessments and review secure, automatically scored report cards.'
           : view === 'profile' ? 'Keep your name and sign-in email up to date.'
     : view === 'manage' ? 'Save a fee reminder or publish a grade. Students see the change immediately.'
       : isStaff ? 'Class records, fee follow-ups, and student updates in one live workspace.'
@@ -341,17 +365,18 @@ export default function App() {
 
   function signOut() {
     sessionStorage.removeItem('aether_session'); sessionStorage.removeItem('aether_view'); sessionStorage.removeItem('aether_scroll_y');
-    setSession(null); setRecords([]); setStudents([]); setTotalStudents(0); setNotifications([]);
+    setSession(null); setRecords([]); setStudents([]); setTotalStudents(0); setNotifications([]); setTests([]); setTestQuestions([{ prompt: '', options: ['', '', '', ''], correctOption: 0 }]); setActiveTest(null); setActiveAnswers([]); setTestReport(null);
     setAssistantOpen(false); setNotificationsOpen(false); setView('overview'); setMessages(initialMessages);
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
 
   async function refreshData() {
-    const requests = [api('/records', { token: session.token }), api('/notifications', { token: session.token }), api('/classes', { token: session.token }), api('/attendance', { token: session.token }), api('/assignments', { token: session.token })];
+    const requests = [api('/records', { token: session.token }), api('/notifications', { token: session.token }), api('/classes', { token: session.token }), api('/attendance', { token: session.token }), api('/assignments', { token: session.token }), api('/tests', { token: session.token })];
     if (isStaff) requests.push(api('/students', { token: session.token }));
-    const [recordData, notificationData, classData, attendanceData, assignmentData, studentData] = await Promise.all(requests);
+    const [recordData, notificationData, classData, attendanceData, assignmentData, testData, studentData] = await Promise.all(requests);
     setRecords(recordData.records); setNotifications(notificationData.notifications);
     setClasses(classData.classes); setAttendance(attendanceData.attendance); setAssignments(assignmentData.assignments);
+    setTests(testData.tests);
     if (studentData) { setStudents(studentData.students); setTotalStudents(studentData.totalStudents); }
     setLastSyncedAt(new Date()); setDataError('');
   }
@@ -363,8 +388,8 @@ export default function App() {
     try {
       const { record } = await api(`/records/${kind}`, { token: session.token, method: 'POST', body: JSON.stringify(payload) });
       await refreshData(); formElement.reset(); setSelectedStudentEmail('');
-      const emailStatus = { queued: 'email queued', sent: 'email accepted by SMTP', failed: 'email delivery failed', not_configured: 'email is not configured' }[record.notification?.emailStatus] || 'email status unavailable';
-      flash(`${kind === 'fee' ? 'Fee reminder' : 'Grade'} saved. The student has been notified; ${emailStatus}.`);
+      const emailStatus = { queued: 'email queued', sent: 'email accepted by the provider', failed: 'email delivery failed; check the server logs', not_configured: 'email is not configured' }[record.notification?.emailStatus] || 'email status unavailable';
+      flash(`${kind === 'fee' ? 'Fee reminder' : 'Grade'} saved and in-app notice created. Email: ${emailStatus}.`);
       navigate('overview');
     } catch (error) { flash(error.message, 'error'); }
     finally { setBusy(false); }
@@ -414,6 +439,58 @@ export default function App() {
     payload.dueAt = dueAt.toISOString();
     try { await api('/assignments', { token: session.token, method: 'POST', body: JSON.stringify(payload) }); await refreshData(); form.reset(); flash('Assignment published and students notified.'); }
     catch (error) { flash(error.message, 'error'); }
+    finally { setBusy(false); }
+  }
+
+  async function createTest(event) {
+    event.preventDefault(); const form = event.currentTarget; setBusy(true);
+    const payload = Object.fromEntries(new FormData(form).entries());
+    try {
+      payload.opensAt = new Date(payload.opensAt).toISOString(); payload.closesAt = new Date(payload.closesAt).toISOString();
+      payload.durationMinutes = Number(payload.durationMinutes);
+      payload.questions = testQuestions;
+      const { emailDelivery = {} } = await api('/tests', { token: session.token, method: 'POST', body: JSON.stringify(payload) });
+      await refreshData(); form.reset(); setTestQuestions([{ prompt: '', options: ['', '', '', ''], correctOption: 0 }]);
+      const queued = emailDelivery.queued || 0; const notConfigured = emailDelivery.not_configured || 0; const failed = emailDelivery.failed || 0;
+      const emailSummary = queued ? `${queued} student email${queued === 1 ? '' : 's'} queued for delivery.${failed ? ` ${failed} could not be queued; check the server logs.` : ''}`
+        : notConfigured ? 'Email is not configured, so students will only see the in-app notice.'
+          : failed ? 'Student email could not be queued; check the server logs.'
+            : 'No students are enrolled in this class.';
+      flash(`Test published. ${emailSummary}`, failed ? 'error' : 'success');
+    } catch (error) { flash(error.message, 'error'); }
+    finally { setBusy(false); }
+  }
+
+  async function startTest(test) {
+    setBusy(true);
+    try {
+      const { test: testData, attempt } = await api(`/tests/${test._id}/start`, { token: session.token, method: 'POST', body: JSON.stringify({}) });
+      testAutoSubmitRef.current = false;
+      if (attempt.submittedAt) {
+        const byId = new Map((attempt.answers || []).map((answer) => [String(answer.question), answer.selectedOption]));
+        setTestReport({ ...attempt, title: test.title, questions: testData.questions.map((question) => ({ ...question, selectedOption: byId.get(String(question._id)), isCorrect: byId.get(String(question._id)) === question.correctOption })) });
+      } else {
+        setTestReport(null); setActiveAnswers(testData.questions.map((question) => (attempt.answers || []).find((answer) => String(answer.question) === String(question._id))?.selectedOption ?? null));
+      }
+      setActiveTest({ ...testData, attempt });
+    } catch (error) { flash(error.message, 'error'); }
+    finally { setBusy(false); }
+  }
+
+  async function persistTestAnswers(test, answers) {
+    testProgressQueueRef.current = testProgressQueueRef.current.catch(() => {}).then(() => api(`/tests/${test._id}/progress`, { token: session.token, method: 'PUT', body: JSON.stringify({ answers }) }));
+    try { await testProgressQueueRef.current; }
+    catch (error) { flash(error.message, 'error'); }
+  }
+
+  async function finishTest(answers = activeAnswers) {
+    if (!activeTest || testReport || busy) return;
+    setBusy(true);
+    try {
+      await testProgressQueueRef.current.catch(() => {});
+      const { report } = await api(`/tests/${activeTest._id}/submit`, { token: session.token, method: 'POST', body: JSON.stringify({ answers }) });
+      setTestReport(report); await refreshData();
+    } catch (error) { flash(error.message, 'error'); }
     finally { setBusy(false); }
   }
 
@@ -513,7 +590,14 @@ export default function App() {
         </div> : view === 'assignments' ? <div className="grid two records-grid">
           {isStaff && <article className="card glass-card"><p className="eyebrow">CLASSWORK</p><h3>Publish assignment</h3><form className="record-form" onSubmit={createAssignment}><label>Class<select name="classId" required><option value="">Choose a class</option>{classes.map((room) => <option key={room._id} value={room._id}>{room.name} · {room.subject}</option>)}</select></label><label>Title<input name="title" required maxLength="140" placeholder="Chapter 4 practice"/></label><label>Instructions<textarea name="instructions" rows="4" maxLength="3000" placeholder="What students need to complete"/></label><label>Due date<input name="dueAt" type="datetime-local" required/></label><button className="primary-button" disabled={busy || !classes.length}>Publish and notify →</button></form></article>}
           <section className="assignment-list">{assignments.length ? assignments.map((item) => { const own = item.submissions.find((entry) => String(entry.student?._id || entry.student) === session.id); return <article className="card glass-card assignment-card" key={item._id}><p className="eyebrow">{item.class?.name || 'CLASS'} · DUE {dateTimeLabel(item.dueAt)}</p><h3>{item.title}</h3><p className="muted">{item.instructions || 'No extra instructions.'}</p>{isStaff ? <div className="submission-list"><strong>{item.submissions.length} submissions</strong>{item.submissions.map((submission) => <p key={submission._id || submission.student?._id}>{submission.student?.name}: {submission.text}</p>)}</div> : <form className="record-form" onSubmit={(event) => submitAssignment(event, item)}><label>Your response<textarea name="text" required maxLength="5000" rows="4" defaultValue={own?.text || ''} placeholder="Write your response"/></label><small className="muted">{own ? `Submitted ${dateLabel(own.submittedAt)} · You can update your response.` : 'Not submitted yet'}</small><button className="primary-button" disabled={busy}>Save submission →</button></form>}</article>; }) : <article className="card glass-card"><p className="empty-state">No assignments have been published to your classes yet.</p></article>}</section>
-        </div> : view === 'students' && isStaff ? <section className="card glass-card directory-card"><div className="section-title"><div><p className="eyebrow">PEOPLE / STUDENTS</p><h3>Student directory</h3></div><span className="badge">{totalStudents} ACTIVE</span></div><div className="directory-tools"><input type="search" value={studentQuery} onChange={(event) => setStudentQuery(event.target.value)} placeholder="Search name or school email" aria-label="Search students"/><button className="secondary-button" onClick={() => { setSelectedStudentEmail(''); navigate('manage'); }}>Add a record</button></div>{filteredStudents.length ? <div className="student-directory">{filteredStudents.map((student) => <article className="student-row" key={student._id}><StudentAvatar student={student} token={session.token}/><div className="student-identity"><strong>{student.name}</strong><span>{student.email}</span></div><small>Joined {dateLabel(student.createdAt)}</small><button className="badge" onClick={() => { setSelectedStudentEmail(student.email); navigate('manage'); }}>Add grade / fee</button><button className="badge remove-student-button" disabled={busy} aria-label={`Remove ${student.name}`} onClick={() => removeStudent(student)}>Remove student</button></article>)}</div> : <p className="empty-state">{students.length ? 'No students match that search.' : 'No student accounts have registered yet.'}</p>}<small className="muted student-retention-note">Deleting a student permanently removes their account, photo, notifications, and class enrollment. Grade, fee, attendance, and submitted assignment history stays in school records.</small></section>
+        </div> : view === 'tests' ? (activeTest ? <section className="card glass-card test-session-card">
+          <div className="test-session-top"><button className="secondary-button" onClick={() => { setActiveTest(null); setTestReport(null); }}>← Back to tests</button>{!testReport && <div className={`test-timer ${testRemaining < 300 ? 'urgent' : ''}`}><span>TIME REMAINING</span><strong>{String(Math.floor(testRemaining / 60)).padStart(2, '0')}:{String(testRemaining % 60).padStart(2, '0')}</strong></div>}</div>
+          {testReport ? <div className="report-card"><div className="report-heading"><div><p className="eyebrow">ASSESSMENT REPORT</p><h2>{testReport.title || activeTest.title}</h2><p className="muted">Submitted {dateTimeLabel(testReport.submittedAt)}</p></div><div className="score-circle"><strong>{testReport.percentage}%</strong><span>COMPLETE</span></div></div><div className="report-stats"><div><span>Score</span><strong>{testReport.score} / {testReport.total}</strong></div><div><span>Percentage</span><strong>{testReport.percentage}%</strong></div><div><span>Status</span><strong>Submitted</strong></div></div><h3>Question review</h3><div className="question-review">{testReport.questions.map((question, index) => <article key={question._id} className={`review-question ${question.isCorrect ? 'correct' : 'incorrect'}`}><div className="review-question-title"><strong>Question {index + 1}</strong><span>{question.isCorrect ? 'Correct' : 'Review'}</span></div><p>{question.prompt}</p><small>Your answer: {question.selectedOption == null ? 'Not answered' : question.options[question.selectedOption]}</small>{!question.isCorrect && <small>Correct answer: {question.options[question.correctOption]}</small>}</article>)}</div></div>
+          : <><p className="eyebrow">{activeTest.class?.name || 'ASSESSMENT'} · {activeTest.questions.length} QUESTIONS · {activeTest.durationMinutes} MINUTES</p><h2>{activeTest.title}</h2><p className="muted">{activeTest.instructions || 'Choose one answer for each question. Your progress is saved as you go.'}</p><form className="test-question-form" onSubmit={(event) => { event.preventDefault(); if (window.confirm('Submit this test now? You cannot change answers after submission.')) void finishTest(); }}>{activeTest.questions.map((question, index) => <fieldset className="test-question" key={question._id}><legend><span>QUESTION {String(index + 1).padStart(2, '0')}</span>{question.prompt}</legend><div className="test-options">{question.options.map((option, choiceIndex) => <label key={choiceIndex} className={activeAnswers[index] === choiceIndex ? 'selected' : ''}><input type="radio" name={`test-${question._id}`} checked={activeAnswers[index] === choiceIndex} onChange={() => { const next = [...activeAnswers]; next[index] = choiceIndex; setActiveAnswers(next); void persistTestAnswers(activeTest, next); }}/><span className="option-key">{String.fromCharCode(65 + choiceIndex)}</span>{option}</label>)}</div></fieldset>)}<button className="primary-button" disabled={busy}>{busy ? 'Submitting…' : 'Submit test and view report →'}</button></form></>}
+        </section> : <div className={`grid ${isStaff ? 'two' : ''} records-grid`}>
+          {isStaff && <article className="card glass-card test-builder"><p className="eyebrow">ASSESSMENTS / AUTHORING</p><h3>Create a timed test</h3><p className="muted">Build an automatically scored multiple choice assessment and assign it to a class.</p><form className="record-form" onSubmit={createTest}><label>Class<select name="classId" required><option value="">Choose a class</option>{classes.map((room) => <option key={room._id} value={room._id}>{room.name} · {room.subject}</option>)}</select></label><label>Test title<input name="title" required maxLength="140" placeholder="Unit 3 · Algebra assessment"/></label><label>Student instructions<textarea name="instructions" rows="3" maxLength="2000" placeholder="Read each question carefully…"/></label><div className="form-inline"><label>Opens<input name="opensAt" type="datetime-local" required/></label><label>Closes<input name="closesAt" type="datetime-local" required/></label></div><label>Time limit (minutes)<input name="durationMinutes" type="number" min="1" max="300" defaultValue="30" required/></label><div className="test-editor-heading"><strong>Questions</strong><span>{testQuestions.length} added</span></div>{testQuestions.map((question, questionIndex) => <fieldset className="question-editor" key={questionIndex}><legend>QUESTION {String(questionIndex + 1).padStart(2, '0')}</legend><label>Prompt<textarea required maxLength="1000" rows="2" value={question.prompt} onChange={(event) => setTestQuestions((items) => items.map((item, index) => index === questionIndex ? { ...item, prompt: event.target.value } : item))}/></label><div className="editor-options">{question.options.map((option, optionIndex) => <label key={optionIndex}>Option {String.fromCharCode(65 + optionIndex)}<input required maxLength="300" value={option} onChange={(event) => setTestQuestions((items) => items.map((item, index) => index === questionIndex ? { ...item, options: item.options.map((choice, choiceNo) => choiceNo === optionIndex ? event.target.value : choice) } : item))}/></label>)}</div><label>Correct answer<select value={question.correctOption} onChange={(event) => setTestQuestions((items) => items.map((item, index) => index === questionIndex ? { ...item, correctOption: Number(event.target.value) } : item))}>{question.options.map((_, optionIndex) => <option value={optionIndex} key={optionIndex}>Option {String.fromCharCode(65 + optionIndex)}</option>)}</select></label>{testQuestions.length > 1 && <button type="button" className="remove-question" onClick={() => setTestQuestions((items) => items.filter((_, index) => index !== questionIndex))}>Remove question</button>}</fieldset>)}<button type="button" className="secondary-button" onClick={() => setTestQuestions((items) => [...items, { prompt: '', options: ['', '', '', ''], correctOption: 0 }])} disabled={testQuestions.length >= 100}>＋ Add question</button><button className="primary-button" disabled={busy || !classes.length}>Publish test and notify students →</button></form></article>}
+          <section className="assignment-list test-list">{tests.length ? tests.map((item) => { const own = !isStaff ? item.attempts[0] : null; const open = Date.now() >= Date.parse(item.opensAt) && Date.now() <= Date.parse(item.closesAt); return <article className="card glass-card assignment-card test-card" key={item._id}><p className="eyebrow">{item.class?.name || 'CLASS'} · {item.class?.subject || 'ASSESSMENT'}</p><h3>{item.title}</h3><p className="muted">{item.instructions || 'No additional instructions.'}</p><div className="test-meta"><span>{item.questions.length} questions</span><span>{item.durationMinutes} minutes</span><span>Closes {dateTimeLabel(item.closesAt)}</span></div>{isStaff ? <div className="submission-list"><strong>{item.attempts.filter((attempt) => attempt.submittedAt).length} / {item.attempts.length} completed</strong>{item.attempts.filter((attempt) => attempt.submittedAt).map((attempt) => <p key={attempt._id}>{attempt.student?.name || 'Student'} · {attempt.score}/{attempt.total} ({attempt.percentage}%)</p>)}</div> : <div className="test-card-action">{own?.submittedAt && <div className="test-result-preview"><span>REPORT CARD</span><strong>{own.score}/{own.total} · {own.percentage}%</strong></div>}<button className="primary-button" disabled={busy || (!open && !own)} onClick={() => void startTest(item)}>{own?.submittedAt ? 'View report card →' : own ? 'Continue test →' : open ? 'Start test →' : Date.now() < Date.parse(item.opensAt) ? 'Opens soon' : 'Test window closed'}</button></div>}</article>; }) : <article className="card glass-card"><p className="empty-state">{isStaff ? 'No tests yet. Create an assessment and assign it to one of your classes.' : 'No tests have been assigned to your classes yet.'}</p></article>}</section>
+        </div>) : view === 'students' && isStaff ? <section className="card glass-card directory-card"><div className="section-title"><div><p className="eyebrow">PEOPLE / STUDENTS</p><h3>Student directory</h3></div><span className="badge">{totalStudents} ACTIVE</span></div><div className="directory-tools"><input type="search" value={studentQuery} onChange={(event) => setStudentQuery(event.target.value)} placeholder="Search name or school email" aria-label="Search students"/><button className="secondary-button" onClick={() => { setSelectedStudentEmail(''); navigate('manage'); }}>Add a record</button></div>{filteredStudents.length ? <div className="student-directory">{filteredStudents.map((student) => <article className="student-row" key={student._id}><StudentAvatar student={student} token={session.token}/><div className="student-identity"><strong>{student.name}</strong><span>{student.email}</span></div><small>Joined {dateLabel(student.createdAt)}</small><button className="badge" onClick={() => { setSelectedStudentEmail(student.email); navigate('manage'); }}>Add grade / fee</button><button className="badge remove-student-button" disabled={busy} aria-label={`Remove ${student.name}`} onClick={() => removeStudent(student)}>Remove student</button></article>)}</div> : <p className="empty-state">{students.length ? 'No students match that search.' : 'No student accounts have registered yet.'}</p>}<small className="muted student-retention-note">Deleting a student permanently removes their account, photo, notifications, and class enrollment. Grade, fee, attendance, and submitted assignment history stays in school records.</small></section>
           : view !== 'manage' ? <>
             <div className={`grid ${isStaff ? 'staff-kpis' : ''}`}>
               {isStaff ? <>
